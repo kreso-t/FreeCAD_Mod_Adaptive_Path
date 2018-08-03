@@ -10,7 +10,7 @@ Adaptive Path Operation - add-on to Path workbench that generates toolpaths whil
     ````
 
 2. Clone the FreeCAD_Mod_Adaptive_Path source into to ~/.FreeCAD/Mod/FreeCAD_Mod_Adaptive_Path
-3. Start the FreeCAD and add the command to the toolbar - the "Adaptive Path" command will not automatically appear in the toolbar, you need to add it by customizing the Path toolbar
+3. Start the FreeCAD and add the "Adaptive 2.5D" command to the toolbar - the command will not automatically appear in the toolbar, you need to add it by customizing the Path toolbar
 
     ![add custom toolbar](./Resources/Inst2.png)
 
