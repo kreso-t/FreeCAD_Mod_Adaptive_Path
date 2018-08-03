@@ -10,14 +10,14 @@ Adaptive Path Operation - add-on to Path workbench that generates toolpaths whil
     ````
     to check the installation you may run the following in the FreeCAD python console:
 
-    ![import pyclipper](./Resources/inst1.png)
+    ![import pyclipper](./Resources/Inst1.png)
 
     if it does not raise error, FreeCAD prerequisites should be ok
 
 2. Clone the FreeCAD_Mod_Adaptive_Path source into to ~/.FreeCAD/Mod/FreeCAD_Mod_Adaptive_Path
 3. Start the FreeCAD and add the command to the toolbar - the "Adaptive Path" command will not automatically appear in the toolbar, you need to add it by customizing the Path toolbar
 
-    ![add custom toolbar](./Resources/inst2.png)
+    ![add custom toolbar](./Resources/Inst2.png)
 
 4. You are ready to go
 
