@@ -10,8 +10,11 @@ SHOW_MARKERS = False
 
 #globals
 last_gui_update_time = 0
-scenePathNodes = {}
+scenePathNodes = {} #keeps tracks of the drawn nodes so we can remove/delete them from the scene when we are done
 
+#
+# Dialog box routines
+#
 def messageBox(msg):
     # Create a simple dialog QMessageBox
     # The first argument indicates the icon used: one of QtGui.QMessageBox.{NoIcon, Information, Warning, Critical, Question}
@@ -29,10 +32,9 @@ def confirmMessage(msg):
         return True
     return False
 
-
-###################################################
-# a progress marker thingy
-###################################################
+#
+# SCENE / DRAWING routines
+#
 def sceneInit(p_toolRadiusScaled, p_topZ, scale_factor):
     global sg
     global toolGeometry

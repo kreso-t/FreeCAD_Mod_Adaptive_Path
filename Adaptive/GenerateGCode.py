@@ -31,7 +31,7 @@ def Execute(op,obj,adaptiveToolpath, startPoint, scale_factor):
 
     helixAngleRad = math.pi * obj.HelixAngle/180.0
     depthPerOneCircle=length * math.tan(helixAngleRad)
-    print "Helix step down per full circle:" , depthPerOneCircle, " (len:" , length , ")"
+    #print "Helix step down per full circle:" , depthPerOneCircle, " (len:" , length , ")"
     stepUp =  obj.LiftDistance.Value
     if stepUp<0:
         stepUp=0
@@ -80,7 +80,7 @@ def Execute(op,obj,adaptiveToolpath, startPoint, scale_factor):
                 dist=math.sqrt((x-lx)*(x-lx) + (y-ly)*(y-ly))
                 if len(pt)==3: #positioning move
                     jumpType = pt[2]
-                    if jumpType==2: #clearence
+                    if jumpType==2: #clearance
                         if lx!=x or ly!=y:
                             op.commandlist.append(Path.Command("G0", { "X": lx, "Y":ly, "Z":obj.ClearanceHeight.Value}))
                         op.commandlist.append(Path.Command("G0", { "X": x, "Y":y, "Z":obj.ClearanceHeight.Value}))

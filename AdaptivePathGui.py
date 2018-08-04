@@ -127,14 +127,17 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.form.StopButton.setChecked(obj.Stopped)
         obj.setEditorMode('AdaptiveInputState', 2) #hide this property
         obj.setEditorMode('AdaptiveOutputState', 2) #hide this property
+        obj.setEditorMode('StopProcessing', 2)  # hide this property
+        obj.setEditorMode('Stopped', 2)  # hide this property
 
 
         #print "setFields"
 
 
     def getFields(self, obj):
-        #obj.Dirty.Value = 1 + obj.Dirty.Value
-        obj.Side = str(self.form.side.currentText())
+        if obj.Side != str(self.form.side.currentText()):
+            obj.Side = str(self.form.side.currentText())
+
         obj.StepOver = self.form.StepOver.value()
         obj.Tolerance = 1.0*self.form.Tolerance.value()/100.0
         obj.HelixAngle = self.form.HelixAngle.value()
@@ -152,4 +155,3 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         obj.setEditorMode('AdaptiveOutputState', 2) #hide this property
 
 
-        #print "getFields"

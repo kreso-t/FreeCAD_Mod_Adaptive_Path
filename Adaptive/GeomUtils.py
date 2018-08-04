@@ -4,6 +4,7 @@ import math
 of = pyclipper.PyclipperOffset()
 
 def anyValidPath(paths):
+    ''' checks the list of paths to find any non empty path '''
     for pth in paths:
         if len(pth) > 0:
             return True
@@ -11,6 +12,7 @@ def anyValidPath(paths):
 
 
 def closePath(path):
+    ''' closes the path if open by adding the point, destructive - changes the existing path '''
     if len(path) == 0:
         return path
     lastPtIndex = len(path)-1
@@ -20,6 +22,7 @@ def closePath(path):
 
 
 def genToolGeometry(toolRadiusScaled):
+    ''' returns circular geometry of a given radius in the clipper coord. space '''
     of = pyclipper.PyclipperOffset()
     of.AddPath([[0, 0], [0, 0]], pyclipper.JT_ROUND, pyclipper.ET_OPENROUND)
     geo = of.Execute(toolRadiusScaled)[0]
@@ -42,8 +45,8 @@ def translatePaths(paths, pt):
         outpaths.append(output)
     return outpaths
 
-# calculates center of polygon
 def centroid(path):
+    ''' finds the center coordinate of a polygon '''
     c = [0, 0]
     sa = 0
     x0 = 0
@@ -69,6 +72,7 @@ def centroid(path):
 
 
 def getDirectionVAt(path, index):
+    ''' direction vector for a point on path given by index, it averages 3 segments around the point '''
     p1i = index-1
     p2i = index
     p3i = index+1
@@ -98,11 +102,13 @@ def getDirectionVAt(path, index):
 
 
 def normalize(v):
+    ''' normalize 2d vector '''
     d = math.sqrt(v[0]*v[0] + v[1]*v[1])
     return [v[0]/d, v[1]/d]
 
 
 def getDirectionV(pt1, pt2):
+    ''' direction vector from two points '''
     #find delta vector between points
     v = [pt2[0]-pt1[0], pt2[1]-pt1[1]]
     #normalize
@@ -111,16 +117,19 @@ def getDirectionV(pt1, pt2):
 
 
 def getAngle(v):
+    ''' angle of 2d vector '''
     return math.atan2(v[1], v[0])
 
 
 def magnitude(v):
+    ''' magnitude/length of 2d vector '''
     return math.sqrt(v[0]*v[0] + v[1]*v[1])
 
 #get angle between two vectors
 
 
 def getAngle2v(v1, v2):
+    ''' angle between two 2d vectors '''
     try:
         d = (v1[0]*v2[0] + v1[1]*v2[1])
         m = (math.sqrt(v1[0]*v1[0] + v1[1]*v1[1])) * \
@@ -135,10 +144,12 @@ def getAngle2v(v1, v2):
 
 
 def sub2v(v1, v2):
+    ''' subtract two vectors '''
     return [v1[0] - v2[0], v1[1] - v2[1]]
 
 
 def sumv(path):
+    ''' sum of array of 2d vectors '''
     res = [0, 0]
     for pt in path:
         res[0] = res[0] + pt[0]
@@ -147,6 +158,7 @@ def sumv(path):
 
 
 def getIntersectionPointLWP(lineSegment, paths):
+    ''' finds first intersection point of the given line segment with given paths '''
     l1 = lineSegment  # first line segment
     for pth in paths:
         if len(pth) > 1:
@@ -177,13 +189,14 @@ def getIntersectionPointLWP(lineSegment, paths):
 
 
 def rotate(v, rad):
+    ''' rotate 2d vector by given radians '''
     c = math.cos(rad)
     s = math.sin(rad)
     return [c*v[0] - s*v[1], s*v[0] + c*v[1]]
 
 
-# get closest point on path to point
 def getClosestPointOnPaths(paths, pt):
+    ''' get closest point on path to point '''
     closestPathIndex = 0
     closestPtIndex = 0
     minDistSq = 1000000000000
@@ -223,8 +236,8 @@ def getClosestPointOnPaths(paths, pt):
                 closestPt = clp
     return closestPt, math.sqrt(minDistSq)
 
-# check if point is within tolerance distance to one of points in the array
 def closeToOneOfPoints(pt, points, toleranceScaled):
+    ''' check if point is within tolerance distance to one of points in the array '''
     for p2 in points:
         if magnitude(sub2v(p2, pt)) <= toleranceScaled:
             return True

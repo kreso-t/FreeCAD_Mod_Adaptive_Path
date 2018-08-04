@@ -9,26 +9,26 @@ def reset():
     del angles[:]
     del areas[:]
 
-    # max engage angle, must be smaller than INITIAL_ENGAGE_ANGLE
+    # min and max tool deflection angle per step
     allowed_range[0] = - math.pi / 4
-    allowed_range[1] =  math.pi / 4  # max disengage angle
+    allowed_range[1] =  math.pi / 4
     pass
 
 
 def getNextAngle(iteration, targetArea, predictedAngle, max_interations):
-
+    ''' Interpolates the optimal cut angle based on the available area vs angle points '''
 
     #print areas,angles
-    if iteration == 1:  # first we try the predicted angle for performance
+    if iteration == 1:  # first we try the predicted angle (for performance reasons - as in most cases angle tend to be approx. constant during the cut)
         angle = predictedAngle
     elif iteration == 2: #measure for max engage angle
         angle=allowed_range[0]
     elif iteration == 4: #measure for min engage angle
         angle=allowed_range[1]
-    elif len(angles) < 2:
+    elif len(angles) < 2: #if we did not get 2 points after two or more iteration try measuring cut area for some random angle
         angle = allowed_range[0] + 0.00000001 + \
              (allowed_range[1] - allowed_range[0]) * random.random()
-    elif iteration>6 and iteration<max_interations-1 and iteration %3 == 0 :  #try random every now and then
+    elif iteration>6 and iteration<max_interations-1 and iteration %3 == 0 :  #try random every now and then to get more different points
         angle = allowed_range[0] + 0.00000001 + \
              (allowed_range[1] - allowed_range[0]) * random.random()
     else:
@@ -50,8 +50,8 @@ def getNextAngle(iteration, targetArea, predictedAngle, max_interations):
 
     return angle, clamped
 
-## adds point keeping the incremental order of areas in order for interpolation to work correctly
 def addPoint(iteration, area, angle):
+    ''' adds point keeping the incremental order of areas in order for interpolation to work correctly '''
     #print "ADD POINT:", iteration, "angle:", angle, "Area:", area, " IsAllowed:", isAllowed
     if len(areas) == 0:
         angles.append(angle)

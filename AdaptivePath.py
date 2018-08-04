@@ -7,12 +7,11 @@ class AdaptivePathOp(PathOp.ObjectOp):
         '''opFeatures(obj) ... returns the OR'ed list of features used and supported by the operation.
         The default implementation returns "FeatureTool | FeatureDeptsh | FeatureHeights | FeatureStartPoint"
         Should be overwritten by subclasses.'''
-        return PathOp.FeatureTool | PathOp.FeatureBaseEdges | PathOp.FeatureDepths | PathOp.FeatureStepDown | PathOp.FeatureHeights | PathOp.FeatureStartPoint | PathOp.FeatureBaseGeometry
+        return PathOp.FeatureTool | PathOp.FeatureBaseEdges | PathOp.FeatureDepths | PathOp.FeatureStepDown | PathOp.FeatureHeights | PathOp.FeatureBaseGeometry
 
     def initOperation(self, obj):
         '''initOperation(obj) ... implement to create additional properties.
         Should be overwritten by subclasses.'''
-        #obj.addProperty("App::PropertyLength", "Dirty", "Adaptive",'Test feature')
         obj.addProperty("App::PropertyEnumeration", "Side", "Adaptive", "Side of selected faces that tool should cut")
         obj.Side = ['Outside', 'Inside']  # side of profile that cutter is on in relation to direction of profile
         obj.addProperty("App::PropertyFloat", "Tolerance", "Adaptive",  "Clearing tolerance")
@@ -27,8 +26,10 @@ class AdaptivePathOp(PathOp.ObjectOp):
                                   "Adaptive", "Stop processing")
         obj.setEditorMode('StopProcessing', 2)  # hide this property
 
-        obj.addProperty("App::PropertyString", "AdaptiveInputState", "Internal","Internal input state")
-        obj.addProperty("App::PropertyString", "AdaptiveOutputState", "Internal","Internal output state")
+        obj.addProperty("App::PropertyString", "AdaptiveInputState",
+                        "Adaptive", "Internal input state")
+        obj.addProperty("App::PropertyString", "AdaptiveOutputState",
+                        "Adaptive", "Internal output state")
         obj.setEditorMode('AdaptiveInputState', 2) #hide this property
         obj.setEditorMode('AdaptiveOutputState', 2) #hide this property
         obj.addProperty("App::PropertyAngle", "HelixAngle", "Adaptive",  "Helix ramp entry angle (degrees)")

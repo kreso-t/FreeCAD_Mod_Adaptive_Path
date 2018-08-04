@@ -331,7 +331,6 @@ def Execute(op,obj,feat_num,feat, scale_factor):
         toolDir = [1.0,0.0]
         firstEngagePoint=True
         last_tool_gui_update = 0
-
         pas=0
         while True:
             pas=pas+1
@@ -506,7 +505,7 @@ def Execute(op,obj,feat_num,feat, scale_factor):
                 appendToolPathCheckJump(of, cp, toolPaths, passToolPath, toolRadiusScaled, cleared)
 
             if over_cut_count>5:
-                Console.PrintError("Break: WARNING: resulting toolpath may be incomplete! (Hint: try changing numeric precision or step over)\n")
+                Console.PrintError("Break: WARNING: resulting toolpath may be incomplete! (Hint: try changing numeric precision or StepOver)\n")
                 break
             #FIND NEXT ENGAGING POINT
             if firstEngagePoint:
@@ -521,7 +520,7 @@ def Execute(op,obj,feat_num,feat, scale_factor):
             toolPos, toolDir = EngagementPoint.getCurrentPoint()
 
         performance = 1.0 * perf_total_len/scale_factor/(time.time()-perf_start_time) # mm/s
-        Console.PrintMessage("Passes: %s, Toolpaths: %d, Output Points: %d, Processed Points: %d, Avg.Iterations: %f, Exceeded: %d, Perf.: %f mm/s, cache_hit: %d/%d (%f perc.)\n" % (
+        Console.PrintMessage("Passes: %s, Toolpaths: %d, Output Points: %d, Processed Points: %d, Avg.Iterations: %f, Exceeded: %d, Perf.: %f mm/s, Cut shape cache hit: %d/%d (%f perc.)\n" % (
             pas, len(toolPaths),output_point_count, total_point_count, 1.0*total_iteration_count/total_point_count, iteration_limit_count, performance, cache_hit_count, cache_pot_count, 100*cache_hit_count/(cache_pot_count+0.1)))
 
         #generate finishing pass

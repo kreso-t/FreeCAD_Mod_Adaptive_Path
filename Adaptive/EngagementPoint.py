@@ -117,7 +117,6 @@ def moveForward(distance):
     return pathDistanceTraveled<=pathLengths[currentPathIndex]+stepScaled
 
 def getCurrentPoint():
-
     curSeg = getCurrentSegment()
     #print "segment:", curSeg, " currentPathIndex:", currentPathIndex, " currentSegmentIndex:",  currentSegmentIndex, " segmentLength:", segmentLength, " segmentPos:", segmentPos
     pt = getSegmentPoint(curSeg, segmentPos, segmentLength)

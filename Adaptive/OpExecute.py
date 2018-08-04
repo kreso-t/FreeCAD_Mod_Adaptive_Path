@@ -11,9 +11,11 @@ import json
 import math
 import cProfile
 
+# run through the cProfiler
 PROFILE = False
 
-def _discretize(edge, flipDirection=False):
+def discretize(edge, flipDirection=False):
+
     pts=edge.discretize(Deflection=0.01)
     if flipDirection: pts.reverse()
     return pts
@@ -23,7 +25,7 @@ def IsEqualInXYPlane(e1, e2):
               (e2.y - e1.y) * (e2.y - e1.y))<0.01
 
 
-def _connectEdges(edges):
+def connectEdges(edges):
     ''' Makes the list of connected discretized paths '''
     # find edge
     lastPoint=None
@@ -57,7 +59,7 @@ def _connectEdges(edges):
             #print edge, p1, p2
             if len(combined)>0: pathArray.append(combined)
             combined = []
-            combined.append(_discretize(edge))
+            combined.append(discretize(edge))
             remaining.remove(edge)
             lastPoint=p2
             newPath=False
@@ -69,14 +71,14 @@ def _connectEdges(edges):
             #print "chk",e, p1, p2
             if IsEqualInXYPlane(lastPoint,p1):
                 #print "last Point equal p1"
-                combined.append(_discretize(e))
+                combined.append(discretize(e))
                 remaining.remove(e)
                 lastPoint=p2
                 anyMatch=True
                 break
             elif IsEqualInXYPlane(lastPoint,p2):
                 #print "reversed"
-                combined.append(_discretize(e,True))
+                combined.append(discretize(e,True))
                 remaining.remove(e)
                 lastPoint=p1
                 anyMatch=True
@@ -103,7 +105,8 @@ def convertToClipper(pathArray,SCALE_FACTOR):
 
     return pyclipper.SimplifyPolygons(clipperPaths)
 
-def resolveTree(clipperPaths, processHoles,side):
+def resolveTree(clipperPaths, processHoles, side):
+    ''' resolves the tree of the paths, from outside to inside, returns list of [path_to_cut_inside, <[hole_path_to_avoid1], [hole_path_to_avoid2], ...>] '''
     pairGraph=[]
     for ip1 in range(0, len(clipperPaths)):
         p1=clipperPaths[ip1]
@@ -184,7 +187,7 @@ def OpExecute(op,obj):
                 for edge in shape.Edges:
                     edges.append(edge)
 
-        pathArray=_connectEdges(edges)
+        pathArray=connectEdges(edges)
         #print "pathArray:",pathArray
         if obj.Side == "Outside":
             stockBB = op.stock.Shape.BoundBox
