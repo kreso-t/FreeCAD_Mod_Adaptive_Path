@@ -1,194 +1,27 @@
 import pyclipper
 import Path
 import math
-## NEW VERSION
 import Plot
 from FreeCAD import Console
-import FreeCADGui
-from PySide import QtCore, QtGui
-from pivy import coin
-import numpy as np
 import time
 import Interpolation
 import random
 import EngagementPoint
+from GuiUtils import *
+from GeomUtils import *
 
-
-global toolGeometry
-global smallDotGeometry
-global mediumDotGeometry
-#enlargedToolGeometry
-global optimalCutAreaPerDist
-global cleared
-global iteration_limit_count
-global total_point_count
-global total_iteration_count
-global tool_enlarge_scaled
-global toolRadiusScaled
-global last_gui_update_time
-
-last_gui_update_time = time.time()
-
+#globals
 total_iteration_count=0
-tool_enlarge_scaled = 20
-
-INITIAL_ENGAGE_ANGLE = math.pi / 32 #must be larger than interpolation negative max engage angle
-GUI_UPDATE_PERIOD = 0.2
-SHOW_MARKERS = False
-def messageBox(msg):
-    # Create a simple dialog QMessageBox
-    # The first argument indicates the icon used: one of QtGui.QMessageBox.{NoIcon, Information, Warning, Critical, Question}
-    diag = QtGui.QMessageBox(QtGui.QMessageBox.Warning, 'Info', msg)
-    diag.setWindowModality(QtCore.Qt.ApplicationModal)
-    diag.exec_()
-    FreeCADGui.updateGui()
-
-
-def confirmMessage(msg):
-    FreeCADGui.updateGui()
-    reply = QtGui.QMessageBox.question(None, "", msg, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-    if reply == QtGui.QMessageBox.Yes: return True
-    return False
-
-
-###################################################
-# a progress marker thingy
-###################################################
-global sg
-#global markerNode
-#global markerTrans
-global topZ
-scenePathNodes = {}
-
-def sceneInit(toolRadius):
-    global sg
-    sg = FreeCADGui.ActiveDocument.ActiveView.getSceneGraph()
-
-def sceneDrawPaths(grpName, paths, scale_factor, color=(0,0,1), closed=False):
-    for path in paths:
-        sceneDrawPath(grpName, path, scale_factor, color, closed)
-
-
-def sceneUpdateGui():
-    global last_gui_update_time
-    if time.time()-last_gui_update_time>GUI_UPDATE_PERIOD:
-        FreeCADGui.updateGui()
-        last_gui_update_time=time.time()
-
-def anyValidPath(paths):
-    for pth in paths:
-        if len(pth)>0: return True
-    return False
-
-
-def sceneDrawPath(grpName, path, scale_factor, color=(0,0,1), closed=False):
-    global sg
-    global topZ
-    global scenePathNodes
-    coPoint = coin.SoCoordinate3()
-    pts = []
-  #make sure its closed
-    if closed and len(path) > 1:
-        pt = path[-1]
-        pts.append([1.0*pt[0]/scale_factor, 1.0*pt[1]/scale_factor, topZ])
-    for pt in path:
-        pts.append([1.0*pt[0]/scale_factor,1.0*pt[1]/scale_factor, topZ])
-
-
-    coPoint.point.setValues(0,len(pts),pts)
-    ma = coin.SoBaseColor()
-    ma.rgb = color
-    li = coin.SoLineSet()
-    li.numVertices.setValue(len(pts))
-    pathNode = coin.SoSeparator()
-    pathNode.addChild(coPoint)
-    pathNode.addChild(ma)
-    pathNode.addChild(li)
-    sg.addChild(pathNode)
-    if not scenePathNodes.has_key(grpName):
-        scenePathNodes[grpName] = []
-    scenePathNodes[grpName].append(pathNode)
-
-def sceneDrawFilledPaths(grpName, paths, scale_factor, color=(0,0,1)):
-    global sg
-    global topZ
-    global scenePathNodes
-
-    for i in range(0, len(paths)):
-        path= paths[i]
-        pts=[]
-        for pt in path:
-            pts.append([1.0*pt[0]/scale_factor,1.0*pt[1]/scale_factor, topZ])
-        coPoint = coin.SoCoordinate3()
-        coPoint.point.setValues(0,len(pts),pts)
-        ma = coin.SoMaterial()
-        ma.diffuseColor = color
-        if i==0:
-            ma.transparency.setValue(0.9)
-        else:
-            ma.transparency.setValue(0.8)
-
-        hints = coin.SoShapeHints()
-        hints.faceType = coin.SoShapeHints.UNKNOWN_FACE_TYPE
-        #hints.vertexOrdering = coin.SoShapeHints.CLOCKWISE
-
-        li = coin.SoIndexedFaceSet()
-        li.coordIndex.setValues(range(0,len(pts)))
-        pathNode = coin.SoSeparator()
-        pathNode.addChild(hints)
-        pathNode.addChild(coPoint)
-        pathNode.addChild(ma)
-        pathNode.addChild(li)
-        sg.addChild(pathNode)
-        if not scenePathNodes.has_key(grpName):
-            scenePathNodes[grpName] = []
-        scenePathNodes[grpName].append(pathNode)
-
-def sceneClean():
-    global sg
-    #sg.removeChild(markerNode)
-    for k in scenePathNodes.keys():
-        for p in scenePathNodes[k]:
-            sg.removeChild(p)
-    FreeCADGui.updateGui()
-
-def sceneClearPaths(grpName):
-    if scenePathNodes.has_key(grpName):
-        for p in scenePathNodes[grpName]:
-            sg.removeChild(p)
-
-
-def closePath(path):
-    if len(path)==0: return path
-    lastPtIndex=len(path)-1
-    if path[lastPtIndex][0] != path[0][0] or path[lastPtIndex][1] != path[0][1]:
-        path.append([path[0][0],path[0][1]])
-    return path
-
-def genToolGeomery(toolRadiusScaled):
-    of=pyclipper.PyclipperOffset()
-    of.AddPath([[0, 0], [0, 0]], pyclipper.JT_ROUND, pyclipper.ET_OPENROUND)
-    geo = of.Execute(toolRadiusScaled)[0]
-    return pyclipper.CleanPolygon(geo)
-
-
-def translatePath(path,pt):
-    output = []
-    for p in path:
-        output.append([p[0]+pt[0],p[1] + pt[1]])
-    return output
-
-def translatePaths(paths, pt):
-    outpaths=[]
-    for path in paths:
-        output = []
-        for p in path:
-            output.append([p[0] + pt[0], p[1] + pt[1]])
-        outpaths.append(output)
-    return outpaths
+output_point_count = 0
+last_gui_update_time = time.time()
+cache = {}
+cache_hit_count = 0
+cache_pot_count = 0
+iteration_limit_count = 0
+total_point_count = 0
 
 ###########################################################
-# Check if tool position if within allowed area
+# Checks if tool position if within allowed area
 ############################################################
 def isOutsideCutRegion(toolPos,cut_region_tp, include_boundary=False):
     #check if we reached the end of cut area - end of this continuous pass
@@ -203,34 +36,7 @@ def isOutsideCutRegion(toolPos,cut_region_tp, include_boundary=False):
             if pip == 1: return True  # must not be inside all other (holes)
     return False
 
-def centroid(path):
-    c=[0,0]
-    sa=0
-    x0=0
-    y0=0
-    x1=0
-    y1=0
-    a=0
-    cnt=len(path)
-    path=closePath(path)    
-    for i in range(0, cnt):
-        x0=path[i][0]
-        y0=path[i][1]
-        x1=path[(i+1) % cnt][0]
-        y1=path[(i+1 % cnt)][1]
-        a=x0*y1-x1*y0
-        sa = sa +a
-        c[0]=c[0] + (x0+x1)*a
-        c[1]=c[1] + (y0+y1)*a
-    sa = 3*sa
-    c[0] = c[0] / sa
-    c[1] = c[1] / sa
-    return c
-
-def findStartPointRampEntry(op,feat_num, cut_region_tp, helixRadius, toolRadius,scale_factor):
-    of=pyclipper.PyclipperOffset()
-    #showPath(op,[outerPath],scale_factor)
-
+def findStartPoint(op,feat_num, cut_region_tp, helixRadius, toolRadius,scale_factor):
     #searching for biggest area to cut, by decremental offseting from target cut_region
 
     #start offset is max x or y size of the stock/2
@@ -262,146 +68,8 @@ def findStartPointRampEntry(op,feat_num, cut_region_tp, helixRadius, toolRadius,
     #sceneClearPaths("STP")
     return None,None
 
-def getDirectionVAt(path, index):
-    p1i=index-1
-    p2i=index
-    p3i=index+1
-    p4i=index+2
-    if p3i>len(path)-1: p3i=p3i-(len(path)-1)
-    if p4i>len(path)-1: p4i=p4i - (len(path)-1)
 
-    #find delta vectors between points
-    pt1=path[p1i]
-    pt2=path[p2i]
-    pt3=path[p3i]
-    pt4=path[p4i]
-
-
-    v1 =[pt2[0]-pt1[0],pt2[1]-pt1[1]]
-    v2 =[pt3[0]-pt2[0],pt3[1]-pt2[1]]
-    v3 =[pt4[0]-pt3[0],pt4[1]-pt3[1]]
-    #add those two vectors - for smoothing of angles at corners
-    v=[v1[0]+v2[0]+v3[0],v1[1]+v2[1]+v3[1]]
-    #v =[pt2[0]-pt1[0],pt2[1]-pt1[1]]
-    #print pt2,pt1
-    #print v
-    #normalize
-    d=math.sqrt(v[0]*v[0] + v[1]*v[1])
-    return [v[0]/d, v[1]/d]
-
-def normalize(v):
-    d=math.sqrt(v[0]*v[0] + v[1]*v[1])
-    return [v[0]/d, v[1]/d]
-
-def getDirectionV(pt1,pt2):
-    #find delta vector between points
-    v =[pt2[0]-pt1[0],pt2[1]-pt1[1]]
-    #normalize
-    d=math.sqrt(v[0]*v[0] + v[1]*v[1])
-    return [v[0]/d, v[1]/d]
-
-def getAngle(v):
-    return math.atan2(v[1], v[0])
-
-def magnitude(v):
-    return math.sqrt(v[0]*v[0] + v[1]*v[1])
-
-#get angle between two vectors
-def getAngle2v(v1,v2):
-    try:
-        d=(v1[0]*v2[0] + v1[1]*v2[1])
-        m=(math.sqrt(v1[0]*v1[0] + v1[1]*v1[1]))*(math.sqrt(v2[0]*v2[0] + v2[1]*v2[1]))
-        if m!=0:
-            return math.acos(d/m)
-        else:
-            return math.pi/32
-    except:
-        #print "matherror",v1,v2
-        return math.pi/4
-
-def sub2v(v1,v2):
-    return [v1[0] - v2[0], v1[1] - v2[1]]
-
-def sumv(path):
-    res = [0, 0]
-    for pt in path:
-        res[0] = res[0] + pt[0]
-        res[1] = res[1] + pt[1]
-    return res
-
-def getIntersectionPointLWP(lineSegment,paths):
-    l1=lineSegment #first line segment
-    for pth in paths:
-        if len(pth)>1:            
-            for i in range(0, len(pth)):
-                l2=[pth[i-1],pth[i]] # second line segment (path line)
-                d=(l1[1][1]-l1[0][1])*(l2[1][0]-l2[0][0]) - (l2[1][1]-l2[0][1])*(l1[1][0]-l1[0][0])
-                if d==0: # lines are parallel 
-                    continue
-                p1d=(l2[1][1]-l2[0][1])*(l1[0][0]-l2[0][0]) - (l2[1][0]-l2[0][0])*(l1[0][1]-l2[0][1])
-                p2d=(l1[1][0]-l1[0][0])*(l2[0][1]-l1[0][1]) - (l1[1][1]-l1[0][1])*(l2[0][0]-l1[0][0])                
-                #clamp 
-                if d<0:
-                    if (p1d<d or p1d>0): continue #not inside segment
-                    if (p2d<d or p2d>0): continue #not inside segment
-                else:
-                    if (p1d<0 or p1d>d): continue #not inside segment
-                    if (p2d<0 or p2d>d): continue #not inside segment
-                return [l1[0][0] + (l1[1][0]-l1[0][0])*p1d/d,l1[0][1] + (l1[1][1]-l1[0][1])*p1d/d]
-    #nothing found, return None
-    return None
-
-def rotate(v,rad):
-    c=math.cos(rad)
-    s=math.sin(rad)
-    return [c*v[0] - s*v[1],s*v[0] + c*v[1]]
-
-
-# get closest point on path to point
-def getClosestPointOnPaths(paths,pt):
-    closestPathIndex=0
-    closestPtIndex=0
-    minDistSq = 1000000000000
-    closestPt=[]
-    for pthi in range(0,len(paths)):
-        path=paths[pthi]
-        for i in range(0, len(path)):
-            #line segment
-            p1=path[i-1]
-            p2=path[i]
-            #length between points on the line segment
-            lsq = (p2[0] - p1[0]) * (p2[0] - p1[0]) + (p2[1] - p1[1]) * (p2[1] - p1[1])
-            if lsq == 0: #segment is very short take the distance to one of end points
-                distSq = (pt[0] - p1[0]) * (pt[0] - p1[0]) + (pt[1] - p1[1]) * (pt[1] - p1[1])
-                clp = p1
-            else:
-                #((point.x - this.start.x) * (this.end.x - this.start.x) + (point.y - this.start.y) * (this.end.y - this.start.y))
-                #parameter of the closest point
-                t = (((pt[0] - p1[0]) * (p2[0] - p1[0]) + (pt[1] - p1[1]) * (p2[1] - p1[1])))
-                #clamp it
-                if t > lsq:
-                    t = lsq
-                if t < 0: t = 0
-                #point on line at t
-                clp=[p1[0] + t*(p2[0]-p1[0])/lsq,p1[1] + t*(p2[1]-p1[1])/lsq]
-                distSq=(pt[0]-clp[0])*(pt[0]-clp[0]) + (pt[1]-clp[1])*(pt[1]-clp[1])
-            if distSq<minDistSq:
-                closestPtIndex=i
-                closestPathIndex=pthi
-                minDistSq = distSq
-                closestPt=clp
-    return closestPt, math.sqrt(minDistSq)
-
-def aproximateFactor(desiredArea,maxArea):
-    if desiredArea>maxArea:
-        return 1.0
-    else:
-        return (math.asin(2.0*desiredArea/maxArea-1.0) + math.pi/2)/math.pi
-
-cache = {}
-cache_hit_count = 0
-cache_pot_count = 0
-
+# caching the cutting shapes as they tend to repeat a lot (saves a lot of clipping)
 def getToolCuttingShape(toolPos,newToolPos,toolRadiusScaled):
     global cache_hit_count
     global cache_pot_count
@@ -463,15 +131,9 @@ def calcCutingArea(toolPos, newToolPos, toolRadiusScaled, cleared):
     else:
         return 0,0
 
-def closeToOneOfPoints(pt, points, toleranceScaled):
-    for p2 in points:
-        if magnitude(sub2v(p2, pt)) <= toleranceScaled: return True
-    return False
-
-
 
 def appendToolPathCheckJump(of,cp,toolPaths,passToolPath,toolRadiusScaled,cleared,close=False):
-      #appending pass toolpath to the list of cuts
+    #appending pass toolpath to the list of cuts
     #checking the jump line for obstacles
     global output_point_count
     if len(passToolPath)<2: return
@@ -484,7 +146,7 @@ def appendToolPathCheckJump(of,cp,toolPaths,passToolPath,toolRadiusScaled,cleare
         of=pyclipper.PyclipperOffset()
         of.AddPath([lastPoint,nextPoint], pyclipper.JT_ROUND, pyclipper.ET_OPENROUND)
         toolShape=of.Execute(toolRadiusScaled-2)
-        #check clearence
+        #check clearance
         cp.Clear()
         cp.AddPaths(toolShape,pyclipper.PT_SUBJECT, True)
         cp.AddPaths(cleared,pyclipper.PT_CLIP, True)
@@ -499,27 +161,6 @@ def appendToolPathCheckJump(of,cp,toolPaths,passToolPath,toolRadiusScaled,cleare
         passToolPath = closePath(passToolPath)
     toolPaths.append(passToolPath)
 
-def showToolDir(grpName, tp, td, scale_factor, color):
-    toolInPos = translatePath(toolGeometry, tp)
-    sceneDrawPath(grpName, toolInPos, scale_factor, color, True)
-
-    pt2 = [tp[0] + td[0] * toolRadiusScaled*3, tp[1] + td[1] * toolRadiusScaled*3]
-    toolInPos = translatePath(smallDotGeometry, pt2)
-    sceneDrawPath(grpName, toolInPos, scale_factor, color, True)
-    sceneDrawPath(grpName, [tp,pt2], scale_factor,color)
-
-def showTool(grpName, tp, scale_factor, color):
-    toolInPos = translatePath(toolGeometry,tp)
-    sceneDrawPaths(grpName, [toolInPos], scale_factor,color, True)
-
-def showFillTool(grpName, tp, scale_factor, color):
-    toolInPos = translatePath(toolGeometry,tp)
-    sceneDrawFilledPaths(grpName, [toolInPos], scale_factor,color)
-
-# def showSmallDot(grpName, tp, scale_factor, color):
-#     geomInPos = translatePath(smallDotGeometry,tp)
-#     sceneDrawPath(grpName, geomInPos, scale_factor,color)
-
 
 #######################################################################
 # Finds next optimal cutting point
@@ -530,14 +171,10 @@ def findNextPoint(obj, op, of, cp, cleared, toolPos, toolDir, toolRadiusScaled, 
     global iteration_limit_count
     global total_point_count
     global total_iteration_count
-    global deflection
-    global tool_enlarge_scaled
         #find valid next tool pos in the pass
     cuttingAreaPerDist=0
     cuttingArea=0
     iteration=0
-    isAllowed=True
-    toolCoverArea=[]
     tryCuttingAreaPerDist=0
     tryCuttingArea=0
     MAX_ERROR=40/stepScaled + 2
@@ -600,19 +237,14 @@ def expandClearedArea(cp,toolInPosGeometry,cleared):
         print toolInPosGeometry
         raise
 
-output_point_count=0
+
 def Execute(op,obj,feat_num,feat, scale_factor):
     global toolGeometry
-    global enlargedToolGeometry
     global optimalCutAreaPerDist
     global iteration_limit_count
     global total_point_count
     global total_iteration_count
     global topZ
-    global next_engagement_point_angle
-    global tool_enlarge_scaled
-    global smallDotGeometry
-    global mediumDotGeometry
     global toolRadiusScaled
     global output_point_count
     global cache_hit_count
@@ -621,9 +253,9 @@ def Execute(op,obj,feat_num,feat, scale_factor):
     global cp
     global of
 
-    import Interpolation
+    #import Interpolation
     #reload(Interpolation)
-    import EngagementPoint
+    #import EngagementPoint
     #reload(EngagementPoint)
 
     toolDiaScaled=op.tool.Diameter*scale_factor
@@ -637,7 +269,6 @@ def Execute(op,obj,feat_num,feat, scale_factor):
     stepOver=0.01*obj.StepOver # percentage to factor
     stepOverDistanceScaled = toolDiaScaled * stepOver
     finishPassOffset=1.0*obj.Tolerance
-    next_engagement_point_angle=0
     cache_hit_count = 0
     cache_pot_count = 0
     cache={}
@@ -649,18 +280,13 @@ def Execute(op,obj,feat_num,feat, scale_factor):
     cp=pyclipper.Pyclipper()
 
     toleranceScaled = int(obj.Tolerance*scale_factor)
-    tool_enlarge_scaled = 0 # toleranceScaled/8 +2
 
     stepScaled = 10
 
-    toolGeometry = genToolGeomery(toolRadiusScaled+1)
-    smallDotGeometry = genToolGeomery(0.2*scale_factor)
-    mediumDotGeometry  = genToolGeomery(1.0*scale_factor)
-
-
+    toolGeometry = genToolGeometry(toolRadiusScaled+1)
 
     # intitalization = calculate slot cutting area per step i.e. 100% step over
-    sceneInit(op.tool.Diameter/2.0)
+    sceneInit(toolRadiusScaled, topZ, scale_factor)
 
     distScaled=toolRadiusScaled/2
     slotStep = translatePath(toolGeometry, [0,distScaled])
@@ -684,10 +310,9 @@ def Execute(op,obj,feat_num,feat, scale_factor):
 
         sceneDrawPaths("BOUNDARY",cut_region_tp,scale_factor,(1,0,0), True)
 
-        cleared,startPoint=findStartPointRampEntry(op,feat_num, cut_region_tp, helixDiameterScaled/2, toolRadiusScaled,scale_factor)
+        cleared,startPoint=findStartPoint(op,feat_num, cut_region_tp, helixDiameterScaled/2, toolRadiusScaled,scale_factor)
         if cleared == None: return [], [0, 0]
         cleared = pyclipper.CleanPolygons(cleared)
-        sceneDrawPath("START_POINT",translatePath(mediumDotGeometry, startPoint), scale_factor, (0,0,0), True)
         toolPos=startPoint
 
         of.Clear()
@@ -703,7 +328,6 @@ def Execute(op,obj,feat_num,feat, scale_factor):
         no_cut_count=0
         over_cut_count=0
         toolPos=[startPoint[0] , startPoint[1]- helixDiameterScaled/2]
-        #toolDir = rotate([1.0,0.0], - INITIAL_ENGAGE_ANGLE)
         toolDir = [1.0,0.0]
         firstEngagePoint=True
         last_tool_gui_update = 0
@@ -733,7 +357,7 @@ def Execute(op,obj,feat_num,feat, scale_factor):
 
             if SHOW_MARKERS:
                 sceneClearPaths("ENGAGE")
-                showToolDir("ENGAGE", toolPos, toolDir, scale_factor, (0, 1,0))
+                sceneDrawToolDir("ENGAGE", toolPos, toolDir, scale_factor, (0, 1,0))
 
 
             engagePoint = toolPos
@@ -762,7 +386,7 @@ def Execute(op,obj,feat_num,feat, scale_factor):
 
                 relDistToBoundary = 2.0*distToBoundary / toolRadiusScaled
                 minCutAreaPerDist = optimalCutAreaPerDist/3+1
-                #if we are away from end boundary line, try makeing the optimal cut
+                #if we are away from end boundary line, try making the optimal cut
                 if relDistToBoundary > 1 or distToEngagePoint<toolRadiusScaled:
                     targetArea = optimalCutAreaPerDist
                 else: #decrease the cut area if we are close to boundary, adds a little bit of smoothing to the end of cut
@@ -836,8 +460,8 @@ def Execute(op,obj,feat_num,feat, scale_factor):
                     if time.time() - last_tool_gui_update > GUI_UPDATE_PERIOD:
                         if SHOW_MARKERS:
                             sceneClearPaths("TP")
-                            showFillTool("TP",newToolPos,scale_factor,(0,0,1))
-                            showToolDir("TP", newToolPos, newToolDir, scale_factor, (0, 0, 1))
+                            sceneDrawFilledTool("TP",newToolPos,scale_factor,(0,0,1))
+                            sceneDrawToolDir("TP", newToolPos, newToolDir, scale_factor, (0, 0, 1))
 
                         sceneClearPaths("PTP")
                         sceneDrawPath("PTP", passToolPath, scale_factor, (0, 0, 1))
@@ -858,9 +482,9 @@ def Execute(op,obj,feat_num,feat, scale_factor):
                     no_cut_count = no_cut_count + 1
                     newToolDir = toolDir
                     break
-                    if no_cut_count > 1:
-                        print "break: no cut"
-                        break
+                    # if no_cut_count > 1:
+                    #     print "break: no cut"
+                    #     break
 
                 if isOutside:  # next valid cut not found
                    #print "Breaking: reached boundary"

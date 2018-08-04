@@ -12,7 +12,6 @@ class AdaptivePathOp(PathOp.ObjectOp):
     def initOperation(self, obj):
         '''initOperation(obj) ... implement to create additional properties.
         Should be overwritten by subclasses.'''
-        print ("AdaptivePathOp initOperation")
         #obj.addProperty("App::PropertyLength", "Dirty", "Adaptive",'Test feature')
         obj.addProperty("App::PropertyEnumeration", "Side", "Adaptive", "Side of selected faces that tool should cut")
         obj.Side = ['Outside', 'Inside']  # side of profile that cutter is on in relation to direction of profile
@@ -28,8 +27,8 @@ class AdaptivePathOp(PathOp.ObjectOp):
                                   "Adaptive", "Stop processing")
         obj.setEditorMode('StopProcessing', 2)  # hide this property
 
-        obj.addProperty("App::PropertyString", "AdaptiveInputState", "Internal","Iternal input state")
-        obj.addProperty("App::PropertyString", "AdaptiveOutputState", "Internal","Iternal output state")
+        obj.addProperty("App::PropertyString", "AdaptiveInputState", "Internal","Internal input state")
+        obj.addProperty("App::PropertyString", "AdaptiveOutputState", "Internal","Internal output state")
         obj.setEditorMode('AdaptiveInputState', 2) #hide this property
         obj.setEditorMode('AdaptiveOutputState', 2) #hide this property
         obj.addProperty("App::PropertyAngle", "HelixAngle", "Adaptive",  "Helix ramp entry angle (degrees)")

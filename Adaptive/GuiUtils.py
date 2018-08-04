@@ -1,6 +1,16 @@
 from PySide import QtCore, QtGui
 from pivy import coin
 import FreeCADGui
+import time
+from GeomUtils import genToolGeometry, translatePath
+
+#constants
+GUI_UPDATE_PERIOD = 0.2
+SHOW_MARKERS = False
+
+#globals
+last_gui_update_time = 0
+scenePathNodes = {}
 
 def messageBox(msg):
     # Create a simple dialog QMessageBox
@@ -23,15 +33,25 @@ def confirmMessage(msg):
 ###################################################
 # a progress marker thingy
 ###################################################
-scenePathNodes = {}
-def sceneInit(toolRadius):
+def sceneInit(p_toolRadiusScaled, p_topZ, scale_factor):
     global sg
+    global toolGeometry
+    global smallDotGeometry
+    global mediumDotGeometry
+    global toolRadiusScaled
+    global topZ
+    topZ=p_topZ
+    toolRadiusScaled=p_toolRadiusScaled
     sg = FreeCADGui.ActiveDocument.ActiveView.getSceneGraph()
+    toolGeometry = genToolGeometry(toolRadiusScaled+1)
+    smallDotGeometry = genToolGeometry(0.2*scale_factor)
+    mediumDotGeometry = genToolGeometry(1.0*scale_factor)
 
 
 def sceneDrawPaths(grpName, paths, scale_factor, color=(0, 0, 1), closed=False):
     for path in paths:
         sceneDrawPath(grpName, path, scale_factor, color, closed)
+
 
 
 def sceneUpdateGui():
@@ -43,7 +63,6 @@ def sceneUpdateGui():
 
 def sceneDrawPath(grpName, path, scale_factor, color=(0, 0, 1), closed=False):
     global sg
-    global topZ
     global scenePathNodes
     coPoint = coin.SoCoordinate3()
     pts = []
@@ -120,7 +139,7 @@ def sceneClearPaths(grpName):
             sg.removeChild(p)
 
 
-def showToolDir(grpName, tp, td, scale_factor, color):
+def sceneDrawToolDir(grpName, tp, td, scale_factor, color):
     toolInPos = translatePath(toolGeometry, tp)
     sceneDrawPath(grpName, toolInPos, scale_factor, color, True)
 
@@ -131,12 +150,12 @@ def showToolDir(grpName, tp, td, scale_factor, color):
     sceneDrawPath(grpName, [tp, pt2], scale_factor, color)
 
 
-def showTool(grpName, tp, scale_factor, color):
+def sceneDrawTool(grpName, tp, scale_factor, color):
     toolInPos = translatePath(toolGeometry, tp)
     sceneDrawPaths(grpName, [toolInPos], scale_factor, color, True)
 
 
-def showFillTool(grpName, tp, scale_factor, color):
+def sceneDrawFilledTool(grpName, tp, scale_factor, color):
     toolInPos = translatePath(toolGeometry, tp)
     sceneDrawFilledPaths(grpName, [toolInPos], scale_factor, color)
 

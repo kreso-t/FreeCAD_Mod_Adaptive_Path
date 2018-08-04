@@ -9,7 +9,7 @@ def reset():
     del angles[:]
     del areas[:]
 
-    # max egnage angle, must be smaller than INITIAL_ENGAGE_ANGLE
+    # max engage angle, must be smaller than INITIAL_ENGAGE_ANGLE
     allowed_range[0] = - math.pi / 4
     allowed_range[1] =  math.pi / 4  # max disengage angle
     pass
@@ -39,7 +39,7 @@ def getNextAngle(iteration, targetArea, predictedAngle, max_interations):
         else:
             angle = np.interp(targetArea, areas, angles)
 
-    # not we have angle to potentially try, clamp it if necessary
+    # now we have angle to potentially try, clamp it if necessary
     clamped = False
     if angle < allowed_range[0]:
         angle = allowed_range[0]
@@ -50,7 +50,7 @@ def getNextAngle(iteration, targetArea, predictedAngle, max_interations):
 
     return angle, clamped
 
-## adds point keeping the incremental order of angles
+## adds point keeping the incremental order of areas in order for interpolation to work correctly
 def addPoint(iteration, area, angle):
     #print "ADD POINT:", iteration, "angle:", angle, "Area:", area, " IsAllowed:", isAllowed
     if len(areas) == 0:

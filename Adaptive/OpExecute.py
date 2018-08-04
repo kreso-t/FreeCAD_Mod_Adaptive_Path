@@ -2,7 +2,6 @@ import FreeCAD
 import FreeCADGui
 import Path
 import Part
-import PathScripts.PathGeom as PathGeom
 import pyclipper
 import Adaptive.ProcessFeature
 import Adaptive.GenerateGCode
@@ -156,8 +155,7 @@ def OpExecute(op,obj):
     #reload(Adaptive.ProcessFeature)
     #reload(Adaptive.GenerateGCode)
 
-    #obj.ViewObject.Visibility = False  # hide toolpaths during calculation
-    #hide old during recalculation
+    #hide old toolpaths during recalculation
     obj.Path = Path.Path("(calculating...)")
     #store old visibility state
     job = op.getJob(obj)

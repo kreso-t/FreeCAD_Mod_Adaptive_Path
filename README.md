@@ -17,7 +17,7 @@ Adaptive Path Operation - add-on to Path workbench that generates toolpaths whil
 4. You are ready to go
 
 ## Usage
-The usage of the Adaptive Path Operation similar to other Path operations. You may select faces and either cut inside of the edges of selected face or outside (within the stock boundary). You also may select vertical faces to define cut region. By using the "Helix max diameter" you may decrease the helix (plunge) diameter in the narrow areas if neccessary. "Lift distance" defines distance by which to raise the tool in the repositioning (G0) moves when there are no obstacles in between (if there are obstacles the tool is raised to Safe Height). "Step Over" and "Step Down" define the material removal rate that will algorithm will try to keep constant during the cut.
+The usage of the Adaptive Path Operation is similar to other Path operations. You may select faces and either cut inside of the edges of selected face or outside (within the stock boundary). You also may select vertical faces to define cut region. By using the "Helix max diameter" you may decrease the helix (plunge) diameter in the narrow areas if necessary. "Lift distance" defines distance by which to raise the tool in the repositioning (G0) moves when there are no obstacles in between (if there are obstacles the tool is raised to Safe Height). "Step Over" and "Step Down" define the material removal rate that will algorithm try to keep constant during the cut.
 
 ## Screenshots
 
@@ -25,4 +25,5 @@ The usage of the Adaptive Path Operation similar to other Path operations. You m
 
   ![ss2](./Resources/example2.png)
 
+  ![ss3](./Resources/example3.png)
 

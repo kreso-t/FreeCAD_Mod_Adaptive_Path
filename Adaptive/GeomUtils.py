@@ -1,4 +1,5 @@
 import pyclipper
+import math
 
 of = pyclipper.PyclipperOffset()
 
@@ -18,7 +19,7 @@ def closePath(path):
     return path
 
 
-def genToolGeomery(toolRadiusScaled):
+def genToolGeometry(toolRadiusScaled):
     of = pyclipper.PyclipperOffset()
     of.AddPath([[0, 0], [0, 0]], pyclipper.JT_ROUND, pyclipper.ET_OPENROUND)
     geo = of.Execute(toolRadiusScaled)[0]

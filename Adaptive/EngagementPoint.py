@@ -1,24 +1,10 @@
 
 import math
 import pyclipper
-import ProcessFeature
+import GuiUtils
 import time
 from matplotlib.mlab import path_length
 
-global currentPathIndex
-global currentSegmentIndex
-global segmentLength
-global segmentPos
-
-
-global boundary_paths
-global stepScaled
-global cp
-global toolGeometry
-global scale_factor
-global last_gui_update
-global pathLengths
-global pathDistanceTraveled
 
 pathLengths = []
 currentPathIndex = 0
@@ -192,10 +178,11 @@ def moveForwardToCutThreshold(cleared, stepDistance, toReachArea, maxArea):
         cp.AddPaths(cleared, pyclipper.PT_CLIP, True)
         cuttingPolygon=cp.Execute(pyclipper.CT_DIFFERENCE, pyclipper.PFT_EVENODD, pyclipper.PFT_EVENODD)
         tryCuttingArea = 0
-        if time.time() - last_gui_update > ProcessFeature.GUI_UPDATE_PERIOD:
-            ProcessFeature.sceneClearPaths("POLY")
-            ProcessFeature.showFillTool("POLY", cpt, scale_factor, (0, 1, 0))
-            ProcessFeature.sceneUpdateGui()
+        if time.time() - last_gui_update > GuiUtils.GUI_UPDATE_PERIOD:
+            GuiUtils.sceneClearPaths("POLY")
+            GuiUtils.sceneDrawFilledTool(
+                "POLY", cpt, scale_factor, (0, 1, 0))
+            GuiUtils.sceneUpdateGui()
             last_gui_update = time.time()
         for poly in cuttingPolygon:
             tryCuttingArea = tryCuttingArea + math.fabs(pyclipper.Area(poly))
