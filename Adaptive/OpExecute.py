@@ -155,8 +155,10 @@ def resolveTree(clipperPaths, processHoles, side):
 
 def OpExecute(op,obj):
     Console.PrintMessage("*** Adaptive toolpath processing started...\n")
-    #reload(Adaptive.ProcessFeature)
-    #reload(Adaptive.GenerateGCode)
+    if Adaptive.ProcessFeature.RELOAD_MODULES:
+        reload(Adaptive.ProcessFeature)
+        reload(Adaptive.GenerateGCode)
+
 
     #hide old toolpaths during recalculation
     obj.Path = Path.Path("(calculating...)")

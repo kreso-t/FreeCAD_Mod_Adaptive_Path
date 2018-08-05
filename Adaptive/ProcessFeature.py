@@ -10,6 +10,9 @@ import EngagementPoint
 from GuiUtils import *
 from GeomUtils import *
 
+#contants
+RELOAD_MODULES = False
+
 #globals
 total_iteration_count=0
 output_point_count = 0
@@ -19,24 +22,29 @@ cache_hit_count = 0
 cache_pot_count = 0
 iteration_limit_count = 0
 total_point_count = 0
+scale_factor = 0
 
 ###########################################################
 # Checks if tool position if within allowed area
 ############################################################
-def isOutsideCutRegion(toolPos,cut_region_tp, include_boundary=False):
-    #check if we reached the end of cut area - end of this continuous pass
-    for i in range(0,len(cut_region_tp)):
-        pth =  cut_region_tp[i]
-        pip = pyclipper.PointInPolygon(toolPos, pth)
+
+def isOutsideCutRegion(toolPos, cut_region_tp_polytree, include_boundary=False):
+    #check if toolPos is outside cut area - i.e. used to check if we reached end of this continuous pass
+    for node in cut_region_tp_polytree.Childs:
+        pip = pyclipper.PointInPolygon(toolPos, node.Contour)
         if pip == -1 and include_boundary:
             return True
-        if i==0:
-            if pip==0: return True # must be inside fist path
-        else:
-            if pip == 1: return True  # must not be inside all other (holes)
-    return False
+        if pip == 1:  #if inside the root path, check if not inside any of its holes
+            for hole in node.Childs:
+                pip = pyclipper.PointInPolygon(toolPos, hole.Contour)
+                if pip == -1 and include_boundary:
+                    return True
+                if pip == 1: return True  # must not be inside all other (holes)
+            return False
+    return True
 
-def findStartPoint(op,feat_num, cut_region_tp, helixRadius, toolRadius,scale_factor):
+
+def findStartPoint(op,feat_num, cut_region_tp,cut_region_tp_polytree, helixRadius, toolRadius,scale_factor):
     #searching for biggest area to cut, by decremental offseting from target cut_region
 
     #start offset is max x or y size of the stock/2
@@ -46,22 +54,25 @@ def findStartPoint(op,feat_num, cut_region_tp, helixRadius, toolRadius,scale_fac
     #try with some reasonable step
     step = toolRadius/4
 
-    while starting_offset>=helixRadius:
+    while starting_offset >= helixRadius:
         of.Clear()
         of.AddPaths(cut_region_tp, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
         offsetPaths=of.Execute(-(starting_offset))
         #showPath(op,offsetPaths,scale_factor)
         for path in offsetPaths:
             #find center
-            pt=centroid(path)
-            #sceneDrawPath("STP", path, scale_factor, (1,0,1))
+            pt = centroid(path)
             #showTool("STP", pt, scale_factor, (1,0,1))
-            if not isOutsideCutRegion(pt,cut_region_tp):
+            if not isOutsideCutRegion(pt, cut_region_tp_polytree):
                     of.Clear()
                     of.AddPath([pt,[pt[0]+1,pt[1]]], pyclipper.JT_ROUND, pyclipper.ET_OPENROUND)
                     cleared_helix=of.Execute(helixRadius + toolRadius)
                     Console.PrintMessage("Start point: %f,%f\n"%(1.0*pt[0]/scale_factor,1.0*pt[1]/scale_factor))
                     return cleared_helix,pt
+            # sceneClearPaths("STP")
+            # sceneDrawPath("STP", path, scale_factor, (1, 0, 1))
+            # messageBox("Continue")
+
         starting_offset=starting_offset-step
 
     Console.PrintError("Unable to find starting point (for path no:%d)!\n"%feat_num)
@@ -132,7 +143,7 @@ def calcCutingArea(toolPos, newToolPos, toolRadiusScaled, cleared):
         return 0,0
 
 
-def appendToolPathCheckJump(of,cp,toolPaths,passToolPath,toolRadiusScaled,cleared,close=False):
+def appendToolPathCheckCollision(of,cp,toolPaths,passToolPath,toolRadiusScaled,cleared,close=False):
     #appending pass toolpath to the list of cuts
     #checking the jump line for obstacles
     global output_point_count
@@ -238,7 +249,7 @@ def expandClearedArea(cp,toolInPosGeometry,cleared):
         raise
 
 
-def Execute(op,obj,feat_num,feat, scale_factor):
+def Execute(op,obj,feat_num,feat, p_scale_factor):
     global toolGeometry
     global optimalCutAreaPerDist
     global iteration_limit_count
@@ -252,11 +263,13 @@ def Execute(op,obj,feat_num,feat, scale_factor):
     global cache
     global cp
     global of
+    global scale_factor
 
-    #import Interpolation
-    #reload(Interpolation)
-    #import EngagementPoint
-    #reload(EngagementPoint)
+    scale_factor = p_scale_factor
+
+    if RELOAD_MODULES:
+        reload(Interpolation)
+        reload(EngagementPoint)
 
     toolDiaScaled=op.tool.Diameter*scale_factor
     toolRadiusScaled = toolDiaScaled / 2
@@ -268,7 +281,7 @@ def Execute(op,obj,feat_num,feat, scale_factor):
     helixDiameterScaled = helixDiameter*scale_factor
     stepOver=0.01*obj.StepOver # percentage to factor
     stepOverDistanceScaled = toolDiaScaled * stepOver
-    finishPassOffset=1.0*obj.Tolerance
+    finishPassOffset=1.0*obj.Tolerance/2
     cache_hit_count = 0
     cache_pot_count = 0
     cache={}
@@ -305,12 +318,15 @@ def Execute(op,obj,feat_num,feat, scale_factor):
         # find cut region toolpath polygons
         of.Clear()
         of.AddPaths(feat, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-        cut_region_tp=of.Execute(-int(finishPassOffset*scale_factor) - toolRadiusScaled)
+        cut_region_tp = of.Execute(-int(finishPassOffset * scale_factor) - toolRadiusScaled)
+        cut_region_tp_polytree =  of.Execute2(-int(finishPassOffset * scale_factor) - toolRadiusScaled)
         cut_region_tp = pyclipper.CleanPolygons(cut_region_tp)
 
         sceneDrawPaths("BOUNDARY",cut_region_tp,scale_factor,(1,0,0), True)
 
-        cleared,startPoint=findStartPoint(op,feat_num, cut_region_tp, helixDiameterScaled/2, toolRadiusScaled,scale_factor)
+        cleared, startPoint = findStartPoint(
+            op, feat_num, cut_region_tp, cut_region_tp_polytree, helixDiameterScaled / 2, toolRadiusScaled, scale_factor)
+
         if cleared == None: return [], [0, 0]
         cleared = pyclipper.CleanPolygons(cleared)
         toolPos=startPoint
@@ -374,7 +390,6 @@ def Execute(op,obj,feat_num,feat, scale_factor):
                     break
                 #Console.PrintMessage("findNextPoint: %d =================================================================\n"%i)
                 total_point_count=total_point_count+1
-                ### IMPORTANT PART - finds the cut angle (new position stepScaled away from current with optimal cut area)
                 toolDir = normalize(sumv(gyro))
 
                 #distance to the boundary line
@@ -420,7 +435,7 @@ def Execute(op,obj,feat_num,feat, scale_factor):
                 #
                 # CHECK if we reached the the boundary
                 #
-                if distToBoundary<toolRadiusScaled and isOutsideCutRegion(newToolPos, cut_region_tp, True):
+                if distToBoundary<toolRadiusScaled and isOutsideCutRegion(newToolPos, cut_region_tp_polytree, True):
                     isOutside=True
                     reachedBoundaryPoint = getIntersectionPointLWP([toolPos, newToolPos], cut_region_tp)
 
@@ -499,10 +514,10 @@ def Execute(op,obj,feat_num,feat, scale_factor):
                 toolCoverArea = of.Execute(toolRadiusScaled + 1)[0]
                 cleared = expandClearedArea(cp, toolCoverArea, cleared)
                 toClearPath=[]
-            if cumulativeCuttingArea >  stepScaled * stepOver * referenceCutArea / 20: #did we cut something significant?
+            if cumulativeCuttingArea >  stepScaled * stepOver * referenceCutArea / 40: #did we cut something significant?
                 sceneClearPaths("PTP")
                 sceneDrawPath("TOOLPATH", passToolPath, scale_factor)
-                appendToolPathCheckJump(of, cp, toolPaths, passToolPath, toolRadiusScaled, cleared)
+                appendToolPathCheckCollision(of, cp, toolPaths, passToolPath, toolRadiusScaled, cleared)
 
             if over_cut_count>5:
                 Console.PrintError("Break: WARNING: resulting toolpath may be incomplete! (Hint: try changing numeric precision or StepOver)\n")
@@ -528,9 +543,14 @@ def Execute(op,obj,feat_num,feat, scale_factor):
         passToolPath=[]
         of.Clear()
         of.AddPaths(feat, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-        finishing=of.Execute(-toolRadiusScaled)
-        for passToolPath in finishing:
-            appendToolPathCheckJump(of,cp,toolPaths, passToolPath, toolRadiusScaled, cleared, True)
+        finishing = of.Execute2(-toolRadiusScaled)
+        # add only paths containing the startPoint and their childs
+        for child in finishing.Childs:
+            if pyclipper.PointInPolygon(startPoint, child.Contour) != 0:
+                appendToolPathCheckCollision(of, cp, toolPaths, child.Contour, toolRadiusScaled, cleared, True)
+                for hole in child.Childs:
+                    appendToolPathCheckCollision(of, cp, toolPaths, hole.Contour, toolRadiusScaled, cleared, True)
+
     except:
         sceneClean()
         raise
