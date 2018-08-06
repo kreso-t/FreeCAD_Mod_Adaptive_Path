@@ -15,6 +15,8 @@ def Execute(op,obj,adaptiveToolpath, startPoint, scale_factor):
     helixRadius = helixDiameter/2.0
     startPoint = [1.0*startPoint[0]/scale_factor, 1.0*startPoint[1]/scale_factor]
     startAngle = math.atan2(adaptiveStartPoint[1] - startPoint[1], adaptiveStartPoint[0] - startPoint[0])
+
+
     #print startPoint, adaptiveStartPoint,startAngle
     lx=startPoint[0]
     ly=startPoint[1]
@@ -53,13 +55,13 @@ def Execute(op,obj,adaptiveToolpath, startPoint, scale_factor):
         helixStart = [startPoint[0] + r * math.cos(offsetFi), startPoint[1] + r * math.sin(offsetFi)]
 
         op.commandlist.append(Path.Command("(helix to depth: %f)"%passEndDepth))
-
-        #rapid move to start point
-        # op.commandlist.append(Path.Command(
-        #     "G0", {"X": helixStart[0], "Y": helixStart[1], "Z": obj.ClearanceHeight.Value}))
-        # #rapid move to safe height
-        # op.commandlist.append(Path.Command(
-        #     "G0", {"X": helixStart[0], "Y": helixStart[1], "Z": obj.SafeHeight.Value}))
+        if step == 1:
+            #rapid move to start point
+            op.commandlist.append(Path.Command(
+                "G0", {"X": helixStart[0], "Y": helixStart[1], "Z": obj.ClearanceHeight.Value}))
+            #rapid move to safe height
+            op.commandlist.append(Path.Command(
+                "G0", {"X": helixStart[0], "Y": helixStart[1], "Z": obj.SafeHeight.Value}))
 
         op.commandlist.append(Path.Command("G1", {
                               "X": helixStart[0], "Y": helixStart[1], "Z": passStartDepth, "F": op.vertFeed}))
