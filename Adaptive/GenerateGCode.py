@@ -8,7 +8,6 @@ def Execute(op,obj,adaptiveToolpath, startPoint, scale_factor):
     if len(adaptiveToolpath[0]) == 0: return
 
     adaptiveStartPoint = [1.0*adaptiveToolpath[0][0][0]/scale_factor, 1.0*adaptiveToolpath[0][0][1]/scale_factor]
-
     helixDiameter = min(op.tool.Diameter,1000.0 if obj.HelixDiameterLimit.Value==0.0 else obj.HelixDiameterLimit.Value )
 
     minLiftDistance = op.tool.Diameter

@@ -11,7 +11,7 @@ from GuiUtils import *
 from GeomUtils import *
 
 #contants
-RELOAD_MODULES = False
+RELOAD_MODULES = True
 
 #globals
 total_iteration_count=0
@@ -147,13 +147,14 @@ def appendToolPathCheckCollision(of,cp,toolPaths,passToolPath,toolRadiusScaled,c
     #appending pass toolpath to the list of cuts
     #checking the jump line for obstacles
     global output_point_count
-    if len(passToolPath)<2: return
+
+    if len(passToolPath)<1: return
     jumpType=1 # assume no lift
     nextPoint = passToolPath[0]
     if len(toolPaths)!=0 and  len(toolPaths[-1])>0: #if this is first path: lift to safe height
         lastPath = toolPaths[-1]
         lastPoint = lastPath[-1]
-        #make toolpath shape from last point to next point
+        #make tool shape from last point to next point
         of=pyclipper.PyclipperOffset()
         of.AddPath([lastPoint,nextPoint], pyclipper.JT_ROUND, pyclipper.ET_OPENROUND)
         toolShape=of.Execute(toolRadiusScaled-2)
@@ -162,16 +163,19 @@ def appendToolPathCheckCollision(of,cp,toolPaths,passToolPath,toolRadiusScaled,c
         cp.AddPaths(toolShape,pyclipper.PT_SUBJECT, True)
         cp.AddPaths(cleared,pyclipper.PT_CLIP, True)
         crossing=cp.Execute(pyclipper.CT_DIFFERENCE, pyclipper.PFT_EVENODD, pyclipper.PFT_EVENODD)
-        if len(crossing)>0:
+        collisionArea = 0
+        for path in crossing:
+            collisionArea = collisionArea + math.fabs(pyclipper.Area(path))
+        if collisionArea>0:
            jumpType=2
-        #print ("appending jump type",jumpType)
         toolPaths.append([[lastPoint[0], lastPoint[1], jumpType], [nextPoint[0], nextPoint[1], jumpType]])
-    passToolPath = pyclipper.CleanPolygon(passToolPath,0.7)
-    output_point_count=output_point_count + len(passToolPath)
-    if close:
-        passToolPath = closePath(passToolPath)
-    toolPaths.append(passToolPath)
 
+    #passToolPath = pyclipper.CleanPolygon(passToolPath,0.7) # this messes up the start point (adds a point to the start of path)
+    output_point_count=output_point_count + len(passToolPath)
+    if len(passToolPath)>0:
+        if close:
+            passToolPath = closePath(passToolPath)
+        toolPaths.append(passToolPath)
 
 #######################################################################
 # Finds next optimal cutting point
@@ -347,7 +351,7 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
         toolDir = [1.0,0.0]
         firstEngagePoint=True
         last_tool_gui_update = 0
-        pas=0
+        pas=0        
         while True:
             pas=pas+1
             #print "pass:", pas
@@ -514,6 +518,7 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
                 toolCoverArea = of.Execute(toolRadiusScaled + 1)[0]
                 cleared = expandClearedArea(cp, toolCoverArea, cleared)
                 toClearPath=[]
+
             if cumulativeCuttingArea >  stepScaled * stepOver * referenceCutArea / 40: #did we cut something significant?
                 sceneClearPaths("PTP")
                 sceneDrawPath("TOOLPATH", passToolPath, scale_factor)
