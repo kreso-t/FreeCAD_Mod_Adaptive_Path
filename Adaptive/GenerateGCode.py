@@ -51,25 +51,28 @@ def Execute(op,obj,adaptiveToolpath, startPoint, scale_factor):
 
 
         helixStart = [startPoint[0] + r * math.cos(offsetFi), startPoint[1] + r * math.sin(offsetFi)]
+
+        op.commandlist.append(Path.Command("(helix to depth: %f)"%passEndDepth))
+
         #rapid move to start point
-        op.commandlist.append(Path.Command(
-            "G0", {"X": helixStart[0], "Y": helixStart[1], "Z": obj.ClearanceHeight.Value}))
-        #rapid move to safe height
-        op.commandlist.append(Path.Command(
-            "G0", {"X": helixStart[0], "Y": helixStart[1], "Z": obj.SafeHeight.Value}))
-        #move to safe height
+        # op.commandlist.append(Path.Command(
+        #     "G0", {"X": helixStart[0], "Y": helixStart[1], "Z": obj.ClearanceHeight.Value}))
+        # #rapid move to safe height
+        # op.commandlist.append(Path.Command(
+        #     "G0", {"X": helixStart[0], "Y": helixStart[1], "Z": obj.SafeHeight.Value}))
+
         op.commandlist.append(Path.Command("G1", {
                               "X": helixStart[0], "Y": helixStart[1], "Z": passStartDepth, "F": op.vertFeed}))
-
 
         while fi<maxfi:
             x = startPoint[0] + r * math.cos(fi+offsetFi)
             y = startPoint[1] + r * math.sin(fi+offsetFi)
             z = passStartDepth - fi / maxfi * (passStartDepth - passEndDepth)
             op.commandlist.append(Path.Command("G1", { "X": x, "Y":y, "Z":z, "F": op.vertFeed}))
+            lx=x
+            ly=y
             fi=fi+math.pi/16
-        lx=0
-        ly=0
+        op.commandlist.append(Path.Command("(adaptive - depth: %f)"%passEndDepth))
         #add adaptive paths
         for pi in range(0, len(adaptiveToolpath)):
             toolPath = adaptiveToolpath[pi]
@@ -98,6 +101,6 @@ def Execute(op,obj,adaptiveToolpath, startPoint, scale_factor):
                 ly=y
         passStartDepth=passEndDepth
     #return to safe height
-    op.commandlist.append(Path.Command("G0", { "X": lx, "Y":ly, "Z":obj.SafeHeight.Value}))
+    op.commandlist.append(Path.Command("G0", { "X": lx, "Y":ly, "Z":obj.ClearanceHeight.Value}))
 
 

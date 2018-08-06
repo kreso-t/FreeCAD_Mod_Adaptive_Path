@@ -195,43 +195,47 @@ def rotate(v, rad):
     return [c*v[0] - s*v[1], s*v[0] + c*v[1]]
 
 
+def pointToLineSegmentDistanceSquared(p1,p2,pt, clamp = True):
+    ''' p1 and p2 define the line seqgment, pt defines the point '''
+
+    lsq = (p2[0] - p1[0]) * (p2[0] - p1[0]) + \
+        (p2[1] - p1[1]) * (p2[1] - p1[1])
+    if lsq == 0:  # segment is very short take the distance to one of end points
+        distSq = (pt[0] - p1[0]) * (pt[0] - p1[0]) + \
+            (pt[1] - p1[1]) * (pt[1] - p1[1])
+        clp = p1
+    else:
+        #((point.x - this.start.x) * (this.end.x - this.start.x) + (point.y - this.start.y) * (this.end.y - this.start.y))
+        #parameter of the closest point
+        t = (((pt[0] - p1[0]) * (p2[0] - p1[0]) +
+              (pt[1] - p1[1]) * (p2[1] - p1[1])))
+        #clamp it
+        if clamp:
+            if t > lsq:
+                t = lsq
+            if t < 0:
+                t = 0
+        #point on line at t
+        clp = [p1[0] + t*(p2[0]-p1[0])/lsq, p1[1] +
+               t*(p2[1]-p1[1])/lsq]
+        distSq = (pt[0]-clp[0])*(pt[0]-clp[0]) + \
+            (pt[1]-clp[1])*(pt[1]-clp[1])
+    return clp, distSq
+
+
 def getClosestPointOnPaths(paths, pt):
     ''' get closest point on path to point '''
-    closestPathIndex = 0
-    closestPtIndex = 0
-    minDistSq = 1000000000000
+    #closestPathIndex = 0
+    #closestPtIndex = 0
+    minDistSq = 100000000000000
     closestPt = []
     for pthi in range(0, len(paths)):
         path = paths[pthi]
         for i in range(0, len(path)):
-            #line segment
-            p1 = path[i-1]
-            p2 = path[i]
-            #length between points on the line segment
-            lsq = (p2[0] - p1[0]) * (p2[0] - p1[0]) + \
-                (p2[1] - p1[1]) * (p2[1] - p1[1])
-            if lsq == 0:  # segment is very short take the distance to one of end points
-                distSq = (pt[0] - p1[0]) * (pt[0] - p1[0]) + \
-                    (pt[1] - p1[1]) * (pt[1] - p1[1])
-                clp = p1
-            else:
-                #((point.x - this.start.x) * (this.end.x - this.start.x) + (point.y - this.start.y) * (this.end.y - this.start.y))
-                #parameter of the closest point
-                t = (((pt[0] - p1[0]) * (p2[0] - p1[0]) +
-                      (pt[1] - p1[1]) * (p2[1] - p1[1])))
-                #clamp it
-                if t > lsq:
-                    t = lsq
-                if t < 0:
-                    t = 0
-                #point on line at t
-                clp = [p1[0] + t*(p2[0]-p1[0])/lsq, p1[1] +
-                       t*(p2[1]-p1[1])/lsq]
-                distSq = (pt[0]-clp[0])*(pt[0]-clp[0]) + \
-                    (pt[1]-clp[1])*(pt[1]-clp[1])
+            clp,distSq = pointToLineSegmentDistanceSquared(path[i-1],path[i],pt)
             if distSq < minDistSq:
-                closestPtIndex = i
-                closestPathIndex = pthi
+                #closestPtIndex = i
+                #closestPathIndex = pthi
                 minDistSq = distSq
                 closestPt = clp
     return closestPt, math.sqrt(minDistSq)
@@ -242,3 +246,27 @@ def closeToOneOfPoints(pt, points, toleranceScaled):
         if magnitude(sub2v(p2, pt)) <= toleranceScaled:
             return True
     return False
+
+def cleanPath(path, tolerance):
+    ''' removes uneccessary points from path while keeping remaining segments within tolerance with original path '''
+    output = []
+    firstPoint = True
+    for pt in path:
+        if firstPoint:
+            firstPoint=False
+            output.append(pt)
+        else:
+            if len(output)>2:
+                #if line is (within tolerance) on the same (last) line segment, extend the segment to the point
+                clp,distSq = pointToLineSegmentDistanceSquared(output[-2],output[-1],pt,False)
+                if math.sqrt(distSq)<tolerance:
+                    output.pop(-1) #remove last segment point
+                    output.append(pt) #add new point
+                else:
+                    output.append(pt)
+            elif magnitude(sub2v(pt,output[-1]))<tolerance: # if point to close to last point - replace it
+                output.pop(-1) #remove last point
+                output.append(pt) #add new point
+            else:
+                output.append(pt)
+    return output

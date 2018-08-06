@@ -8,10 +8,12 @@ import Interpolation
 import random
 import EngagementPoint
 from GuiUtils import *
-from GeomUtils import *
+import GeomUtils
+
 
 #contants
 RELOAD_MODULES = True
+CLEAN_PATH_TOLERANCE = 1.41
 
 #globals
 total_iteration_count=0
@@ -61,7 +63,7 @@ def findStartPoint(op,feat_num, cut_region_tp,cut_region_tp_polytree, helixRadiu
         #showPath(op,offsetPaths,scale_factor)
         for path in offsetPaths:
             #find center
-            pt = centroid(path)
+            pt = GeomUtils.centroid(path)
             #showTool("STP", pt, scale_factor, (1,0,1))
             if not isOutsideCutRegion(pt, cut_region_tp_polytree):
                     of.Clear()
@@ -86,8 +88,8 @@ def getToolCuttingShape(toolPos,newToolPos,toolRadiusScaled):
     global cache_pot_count
     global cache
 
-    subv = sub2v(newToolPos, toolPos)
-    dist = magnitude(subv)
+    subv = GeomUtils.sub2v(newToolPos, toolPos)
+    dist = GeomUtils.magnitude(subv)
     if dist < 1:
         return [[]]
 
@@ -114,19 +116,19 @@ def getToolCuttingShape(toolPos,newToolPos,toolRadiusScaled):
         toolCutShape= pyclipper.CleanPolygons(toolCutShape)
         cache[key] = toolCutShape
 
-    toolCoverArea = translatePaths(toolCutShape, toolPos)
+    toolCoverArea = GeomUtils.translatePaths(toolCutShape, toolPos)
 
     return toolCoverArea
 
 def calcCutingArea(toolPos, newToolPos, toolRadiusScaled, cleared):
 
-    dist = magnitude(sub2v(newToolPos, toolPos))
+    dist = GeomUtils.magnitude(GeomUtils.sub2v(newToolPos, toolPos))
     if dist == 0:
         return 0, 0
 
     toolCoverArea = getToolCuttingShape(toolPos, newToolPos, toolRadiusScaled)
 
-    if anyValidPath(toolCoverArea):
+    if GeomUtils.anyValidPath(toolCoverArea):
         #calculate area
         cp.Clear()
         cp.AddPaths(toolCoverArea,pyclipper.PT_SUBJECT, True)
@@ -174,7 +176,7 @@ def appendToolPathCheckCollision(of,cp,toolPaths,passToolPath,toolRadiusScaled,c
     output_point_count=output_point_count + len(passToolPath)
     if len(passToolPath)>0:
         if close:
-            passToolPath = closePath(passToolPath)
+            passToolPath = GeomUtils.closePath(passToolPath)
         toolPaths.append(passToolPath)
 
 #######################################################################
@@ -208,7 +210,7 @@ def findNextPoint(obj, op, of, cp, cleared, toolPos, toolDir, toolRadiusScaled, 
         deflectionAngle, clamped = Interpolation.getNextAngle(
             iteration, targetAreaPerDist, predictedAngle, max_interations)
 
-        tryToolDir = rotate(toolDir, deflectionAngle)
+        tryToolDir = GeomUtils.rotate(toolDir, deflectionAngle)
         tryToolPos = [toolPos[0] + int(tryToolDir[0] * stepScaled),
                       toolPos[1] + int(tryToolDir[1] * stepScaled)]
 
@@ -274,6 +276,7 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
     if RELOAD_MODULES:
         reload(Interpolation)
         reload(EngagementPoint)
+        reload(GeomUtils)
 
     toolDiaScaled=op.tool.Diameter*scale_factor
     toolRadiusScaled = toolDiaScaled / 2
@@ -352,7 +355,7 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
         firstEngagePoint=True
         last_tool_gui_update = 0
         pas=0
-        
+
         while True:
             pas=pas+1
             #print "pass:", pas
@@ -373,7 +376,7 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
             isOutside = False
 
             gyro = [toolDir]* 5
-            toolDir = normalize(sumv(gyro))
+            toolDir = GeomUtils.normalize(GeomUtils.sumv(gyro))
 
             if SHOW_MARKERS:
                 sceneClearPaths("ENGAGE")
@@ -395,13 +398,13 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
                     break
                 #Console.PrintMessage("findNextPoint: %d =================================================================\n"%i)
                 total_point_count=total_point_count+1
-                toolDir = normalize(sumv(gyro))
+                toolDir = GeomUtils.normalize(GeomUtils.sumv(gyro))
 
                 #distance to the boundary line
                 #if distToBoundary<toolRadiusScaled:
-                clp, distToBoundary = getClosestPointOnPaths(cut_region_tp, toolPos)
+                clp, distToBoundary = GeomUtils.getClosestPointOnPaths(cut_region_tp, toolPos)
 
-                distToEngagePoint=magnitude(sub2v(toolPos,engagePoint))
+                distToEngagePoint=GeomUtils.magnitude(GeomUtils.sub2v(toolPos,engagePoint))
 
                 relDistToBoundary = 2.0*distToBoundary / toolRadiusScaled
                 minCutAreaPerDist = optimalCutAreaPerDist/3+1
@@ -433,7 +436,7 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
                 cp.AddPath(bound_box, pyclipper.PT_SUBJECT, True)
                 cp.AddPaths(cleared,pyclipper.PT_CLIP, True)
                 cleared_bounded = cp.Execute(pyclipper.CT_INTERSECTION, pyclipper.PFT_EVENODD, pyclipper.PFT_EVENODD)
-                if not anyValidPath(cleared_bounded): cleared_bounded = cleared
+                if not GeomUtils.anyValidPath(cleared_bounded): cleared_bounded = cleared
 
                 newToolPos, newToolDir, cuttingAreaPerDist, cuttingArea, deflectionAngle = findNextPoint(
                     obj, op, of, cp, cleared_bounded, toolPos, toolDir, toolRadiusScaled, stepScaled, targetArea, scale_factor)
@@ -442,7 +445,7 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
                 #
                 if distToBoundary<toolRadiusScaled and isOutsideCutRegion(newToolPos, cut_region_tp_polytree, True):
                     isOutside=True
-                    reachedBoundaryPoint = getIntersectionPointLWP([toolPos, newToolPos], cut_region_tp)
+                    reachedBoundaryPoint = GeomUtils.getIntersectionPointLWP([toolPos, newToolPos], cut_region_tp)
 
                     if reachedBoundaryPoint != None:
                         #print "reachedBoundaryPoint:", reachedBoundaryPoint
@@ -523,6 +526,7 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
             if cumulativeCuttingArea >  stepScaled * stepOver * referenceCutArea / 40: #did we cut something significant?
                 sceneClearPaths("PTP")
                 sceneDrawPath("TOOLPATH", passToolPath, scale_factor)
+                passToolPath = GeomUtils.cleanPath(passToolPath, CLEAN_PATH_TOLERANCE)
                 appendToolPathCheckCollision(of, cp, toolPaths, passToolPath, toolRadiusScaled, cleared)
 
             if over_cut_count>5:
@@ -553,10 +557,13 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
         # add only paths containing the startPoint and their childs
         for child in finishing.Childs:
             if pyclipper.PointInPolygon(startPoint, child.Contour) != 0:
-                appendToolPathCheckCollision(of, cp, toolPaths, child.Contour, toolRadiusScaled, cleared, True)
+                appendToolPathCheckCollision(of, cp, toolPaths, GeomUtils.cleanPath(child.Contour,CLEAN_PATH_TOLERANCE/2), toolRadiusScaled, cleared, True)
                 for hole in child.Childs:
-                    appendToolPathCheckCollision(of, cp, toolPaths, hole.Contour, toolRadiusScaled, cleared, True)
+                    appendToolPathCheckCollision(of, cp, toolPaths, GeomUtils.cleanPath(hole.Contour,CLEAN_PATH_TOLERANCE/2), toolRadiusScaled, cleared, True)
 
+        # append the return to the initial point (and check collision)
+        if len(toolPaths)>0 and len(toolPaths[0])>0:
+            appendToolPathCheckCollision(of, cp, toolPaths, [[toolPaths[0][0][0],toolPaths[0][0][1]]], toolRadiusScaled, cleared, True)
     except:
         sceneClean()
         raise
