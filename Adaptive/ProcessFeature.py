@@ -351,7 +351,8 @@ def Execute(op,obj,feat_num,feat, p_scale_factor):
         toolDir = [1.0,0.0]
         firstEngagePoint=True
         last_tool_gui_update = 0
-        pas=0        
+        pas=0
+        
         while True:
             pas=pas+1
             #print "pass:", pas
